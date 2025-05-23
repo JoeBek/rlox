@@ -1,9 +1,11 @@
 
 use std::env;
 use std::fs;
+use std::io::{stdin,stdout, Write};
 use std::process;
 use std::error::Error;
 
+mod token;
 
 fn main() {
 
@@ -49,13 +51,51 @@ fn run_prompt() {
 
     println!("Welcome to the REPL");
 
+    loop {
+        print!("> ");
+        stdout().flush().unwrap();
+
+        let mut input = String::new();
+        stdin().read_line(&mut input).expect("could not read stdin");
+        
+        let input = input.trim();
+
+        if input.is_empty() {
+            break;
+        }
+        run(&input);
+
+    }
+
 
 }
 
 /// the big money fn
 fn run(content: &str) {
 
+    // create scanner and token list
+
+    /* 
+    let scanner:Scanner = Scanner::new();
+    let tokens:vec<Token> = vec::new();
+
+
+    for token in &tokens {
+        println!(token);
+    }
+    */
+
     ()
-    
+
+
+}
+
+fn error(line:u32, msg:&str) {
+    report(line, "", &msg);
+}
+
+fn report(line:u32, loc:&str, msg:&str) {
+
+    eprintln!("[line {line} ] error {loc}: {msg}");
 }
 
