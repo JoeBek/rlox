@@ -6,6 +6,8 @@ use std::process;
 use std::error::Error;
 
 mod token;
+mod token_type;
+mod scanner;
 
 fn main() {
 

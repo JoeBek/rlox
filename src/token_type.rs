@@ -1,7 +1,7 @@
 
 
-#[derive(Debug)]
-enum TokenType {
+#[derive(Clone, Debug)]
+pub enum TokenType {
 
     // single character
     LEFT_PAREN, RIGHT_PAREN, LEFT_BRACE, RIGHT_BRACE, COMMA, DOT, MINUS, PLUS, SEMICOLON, SLASH, STAR, 
