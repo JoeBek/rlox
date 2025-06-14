@@ -8,6 +8,7 @@ use std::error::Error;
 mod token;
 mod token_type;
 mod scanner;
+mod error;
 
 fn main() {
 
@@ -90,14 +91,5 @@ fn run(content: &str) {
     ()
 
 
-}
-
-fn error(line:u32, msg:&str) {
-    report(line, "", &msg);
-}
-
-fn report(line:u32, loc:&str, msg:&str) {
-
-    eprintln!("[line {line} ] error {loc}: {msg}");
 }
 
