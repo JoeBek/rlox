@@ -63,19 +63,71 @@ impl Scanner {
         self.current >= self.source.chars().count()
     }
 
-    fn scan_token(&mut self) {
+    /// advances current iterator and returns option for next char
+    fn advance(&mut self) -> Option<char> {
 
-        let c = {
-            let mut iter = self.iter_from_start();
-            match iter.next() {
-                Some((_, ch)) => ch,
-                None => return, // return for at end (no char)
-            }
+        // map the iterator i,c to return the character, increase the char index.
+        let opt = {
+            self.iter_from_start().next().map(|(_,c)| c)
+        };
+        self.current += 1; 
+        opt 
+
+    }
+
+    /// advance with no advancement
+    fn peek(&mut self) -> Option<char> {
+
+        // map the iterator i,c to return the character, increase the char index.
+        let opt = {
+            self.iter_from_current().next().map(|(_,c)| c)
+        };
+        opt 
+
+    }
+
+    /// advances only if the char returns a 
+    fn check_and_advance(&mut self, c:char) -> Option<char> {
+        
+        let opt = {
+            self.iter_from_current().next().map(|(_,c)| c)
         };
 
-        self.current += 1;
+        match opt {
+            // conditional advance
+            Some(k) => {
+                if k == c {
+                    self.current += 1;
+                    opt
+                }
+                else {
+                    None // was Some(k), now is None. We narrow the option to Some(c) only
+                }
+            },
+            None => None // equivalent to returning opt in this case, but I prefer to be clear
 
-        
+        }
+    }
+
+
+
+    
+
+
+    
+
+    fn scan_token(&mut self) {
+
+
+
+
+        let c = if let Some(ch) = self.advance() {
+            ch
+        } 
+        else {
+            return;
+        };
+
 
         match c {
             ')' => self.add_token(TokenType::RIGHT_PAREN),
@@ -88,9 +140,72 @@ impl Scanner {
             '+' => self.add_token(TokenType::PLUS),
             ';' => self.add_token(TokenType::SEMICOLON),
             '*' => self.add_token(TokenType::STAR),
+            '!' => {
+                
+                if let Some(_) = self.check_and_advance('=') {
+                    self.add_token(TokenType::BANG_EQUAL);
+                }
+                else {
+                    self.add_token(TokenType::BANG)
+                }
+            },
+            '=' => {
+                
+                if let Some(_) = self.check_and_advance('=') {
+                    self.add_token(TokenType::EQUAL_EQUAL);
+                }
+                else {
+                    self.add_token(TokenType::EQUAL)
+                }
+            },
+            '<' => {
+                
+                if let Some(_) = self.check_and_advance('=') {
+                    self.add_token(TokenType::LESS_EQUAL);
+                }
+                else {
+                    self.add_token(TokenType::LESS)
+                }
+            },
+            '>' => {
+                
+                if let Some(_) = self.check_and_advance('=') {
+                    self.add_token(TokenType::GREATER_EQUAL);
+                }
+                else {
+                    self.add_token(TokenType::GREATER)
+                }
+            },
+            '/' => {
+
+                if let Some(_) = self.check_and_advance('/') {
+
+                    // stops at eof or newline
+                    while let Some(c) = self.peek() {
+                        if c == '\n' {
+                            break;
+                        }
+                        self.advance();
+
+                    }
+                }
+                else {
+                    self.add_token(TokenType::SLASH);
+                }
+                
+
+            }
+            ' ' => (),
+            '\r' => (),
+            '\t' => (),
+            '\n' => self.line += 1,
+            
+            
             // default is in error
             _ => error::error(self.line, "unexpected char"),
+
         };
+
 
         
     }
@@ -103,8 +218,23 @@ impl Scanner {
 
     fn add_token(&mut self, token_type: TokenType) {
 
+        // we can move past end by accident 
+        let end_idx: usize;
+
+
+        // protects advance past end of source
+        if self.at_end() {
+            
+            end_idx = self.source.chars().count() - 1;
+            
+        }
+        else {
+            end_idx = self.current;
+
+        }
+
         let start_byte = self.source.char_indices().nth(self.start).map(|(idx, _)| idx).unwrap();
-        let end_byte = self.source.char_indices().nth(self.current).map(|(idx, _)| idx).unwrap();
+        let end_byte = self.source.char_indices().nth(end_idx).map(|(idx, _)| idx).unwrap();
 
         let lexeme = &self.source[start_byte..end_byte];
 
@@ -112,7 +242,6 @@ impl Scanner {
         self.tokens.push(Token::new(token_type, lexeme, self.line));
 
     } 
-
 
 
 }
@@ -160,6 +289,59 @@ mod tests {
 
 
     }
+
+    #[test]
+    fn test_scan_equal() {
+
+        let source = String::from("! = !=");
+
+        let mut scanner = Scanner::new(&source);
+
+        scanner.scan_tokens();
+
+        assert_eq!(3, scanner.tokens.len());
+    }
+
+    #[test]
+    fn test_scan_paren() {
+
+        let source = String::from("() ( ) (()) \n () ()");
+
+        let mut scanner = Scanner::new(&source);
+
+        scanner.scan_tokens();
+
+        assert_eq!(12, scanner.tokens.len());
+    }
+
+    #[test]
+    fn test_comment() {
+
+        let source = String::from("() // comment");
+
+        let mut scanner = Scanner::new(&source);
+
+        scanner.scan_tokens();
+
+        assert_eq!(2, scanner.tokens.len());
+    }
+
+    #[test]
+    fn test_comment_newline() {
+
+        let source = String::from("() // comment \n ()");
+
+        let mut scanner = Scanner::new(&source);
+
+        scanner.scan_tokens();
+
+        assert_eq!(4, scanner.tokens.len());
+    }
+
+
+
+
+
 }
 
 
