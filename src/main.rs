@@ -9,6 +9,7 @@ mod token;
 mod token_type;
 mod scanner;
 mod error;
+mod scanner_utils;
 
 fn main() {
 

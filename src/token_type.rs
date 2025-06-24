@@ -19,3 +19,4 @@ pub enum TokenType {
     // end of file
     EOF
 }
+

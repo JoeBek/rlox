@@ -1,6 +1,8 @@
-use crate::token::Token;
-use crate::token_type::TokenType;
+use crate::token::{Token, Literal};
+use crate::token_type::{TokenType};
 use crate::error;
+use crate::scanner_utils::*;
+
 
 
 
@@ -86,6 +88,17 @@ impl Scanner {
 
     }
 
+    fn peek_next(&mut self) -> Option<char> {
+        let opt = {
+
+            if self.iter_from_current().next().is_none() {
+                return None;
+            }
+            self.iter_from_current().next().map(|(_,c)| c)
+        };
+        opt
+    }
+
     /// advances only if the char returns a 
     fn check_and_advance(&mut self, c:char) -> Option<char> {
         
@@ -108,11 +121,6 @@ impl Scanner {
 
         }
     }
-
-
-
-    
-
 
     
 
@@ -195,6 +203,7 @@ impl Scanner {
                 
 
             }
+            '"' => self.handle_string(),
             ' ' => (),
             '\r' => (),
             '\t' => (),
@@ -202,21 +211,112 @@ impl Scanner {
             
             
             // default is in error
-            _ => error::error(self.line, "unexpected char"),
+            _ if is_digit(c) => {
+
+                self.handle_number();
+
+            }
+            _ => {
+                error::error(self.line, "unexpected char")
+            },
 
         };
+
+
+
+    }
+
+    fn handle_number(&mut self) {
+
+      
+      while let Some(c) = self.peek() {
+        if !is_digit(c) {
+            break;
+        } 
+        self.advance();
+
+      }
+
+      
+
+      if matches!(self.peek(),Some('.'))  {
+
+        if let Some(k) = self.peek_next() {
+
+        
+        if is_digit(k) {
+            
+            self.advance();
+            while matches!(self.peek(), Some(c) if is_digit(c)) {
+                self.advance();
+            }        
+            }
+        }
+     }
+
+      
+      // parse start and end byte from source, convert to f64, yada yada
+      let start_byte = self.source.char_indices().nth(self.start).map(|(i,_)| i).unwrap();
+      // a little sketchy
+      let end_byte = self.source.char_indices().nth(self.current - 1).map(|(i,_)| i).unwrap() + 1;
+
+      let str_literal = self.source[start_byte..end_byte].to_string();
+
+      // should never panic if the scanner works.. we just parsed it
+      let dub: f64 = str_literal.parse().unwrap();
+      let literal = Literal::NumberLiteral(dub);
+
+
+      self.add_token_literal(TokenType::NUMBER, literal);
 
 
         
     }
 
-    fn match_token(&self, token:char) {
+    fn handle_string(&mut self) {
+       while let Some(c) = self.peek() {
 
-        
+         // check to see if string terminated
+         if c == '"' {
+            break;
+         }
 
-    } 
+         if c == '\n' {
+            self.line += 1;
+         }
+
+         self.advance();
+
+       } 
+
+       
+       if self.at_end() {
+            error::error(self.line, "unterminated string");
+            return;
+       }
+
+       // consume second quote
+       self.advance();
+       
+       let start = self.start + 1;
+       let end = self.current - 1;
+
+       let start_byte = self.source.char_indices().nth(start).map(|(i,_)| i).unwrap();
+       let end_byte = self.source.char_indices().nth(end).map(|(i,_)| i).unwrap();
+
+       let literal = self.source[start_byte..end_byte].to_owned();
+
+       self.add_token_literal(TokenType::STRING, Literal::StringLiteral(literal));
+
+    }
+
 
     fn add_token(&mut self, token_type: TokenType) {
+
+        self.add_token_literal(token_type, Literal::None);
+    } 
+
+    fn add_token_literal(&mut self, token_type: TokenType, literal: Literal) {
 
         // we can move past end by accident 
         let end_idx: usize;
@@ -239,9 +339,9 @@ impl Scanner {
         let lexeme = &self.source[start_byte..end_byte];
 
 
-        self.tokens.push(Token::new(token_type, lexeme, self.line));
+        self.tokens.push(Token::new(token_type,  literal ,lexeme, self.line));
 
-    } 
+    }
 
 
 }
@@ -338,8 +438,53 @@ mod tests {
         assert_eq!(4, scanner.tokens.len());
     }
 
+    #[test]
+    fn test_token_string_literal() {
+
+        let source = String::from("\"hello\"");
+
+        let mut scanner = Scanner::new(&source);
+
+        scanner.scan_tokens();
+
+        assert_eq!(1, scanner.tokens.len());
+
+        let item = &scanner.tokens[0];
+
+        let literal = &item.literal;
+
+        assert!(literal.is_some());
+
+        let s: &str = literal.as_ref();
+        assert_eq!(s, "hello");
+
+    }
+
+    #[test]
+    fn test_token_number_literal() {
+
+        let source = String::from("11 11.1");
+
+        let mut scanner = Scanner::new(&source);
+
+        scanner.scan_tokens();
+
+        assert_eq!(1, scanner.tokens.len());
+
+        let item = &scanner.tokens[0];
+
+        let literal = &item.literal;
+
+        assert!(literal.is_some());
+
+        let f: &f64 = literal.as_ref();
+        let compare: f64 = 11.0;
+        assert_eq!(*f, compare);
+
+    }
 
 
+    
 
 
 }

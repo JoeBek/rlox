@@ -2,12 +2,54 @@ use crate::token_type::TokenType; // chapter 7 rust book
 use std::fmt::{Display, Formatter, Result};
 
 
+#[derive(Debug, Clone)]
+pub enum Literal {
+
+    NumberLiteral(f64),
+    StringLiteral(String),
+    None
+    
+}
+
+impl Literal {
+
+    pub fn is_some(&self) -> bool {
+      !matches!(self, Literal::None) 
+    }
+}
+
+impl AsRef<str> for Literal {
+    fn as_ref(&self) -> &str {
+        match self {   
+            Literal::StringLiteral(s) => &s,
+
+            _ => "",
+        }
+    }
+}
+
+impl AsRef<f64> for Literal {
+
+    fn as_ref(&self) -> &f64 {
+
+        match self {
+            Literal::NumberLiteral(f) => &f,
+
+            _ => &0.0
+        }
+    }
+}
+
+
+
+
+#[derive(Debug)]
 pub struct Token {
 
     token_type: TokenType,
     lexeme: String,
     // TODO replace this with sumn
-    // literal: Box<dyn Display>,
+    pub literal: Literal,
     line: u32,
 
 
@@ -16,12 +58,12 @@ pub struct Token {
 impl Token {
 
     // constructor for token
-    pub fn new(token_type:TokenType, lexeme: &str, line: u32) -> Self {
+    pub fn new(token_type:TokenType, literal: Literal, lexeme: &str, line: u32) -> Self {
 
         Self {
             token_type,
             lexeme: lexeme.to_string(),
-            //literal,
+            literal: literal,
             line
         }
 
@@ -43,7 +85,7 @@ impl Clone for Token {
 
     fn clone(&self) -> Self {
         
-        Self { token_type: self.token_type.clone() , lexeme: self.lexeme.clone(), line: self.line }
+        Self { token_type: self.token_type.clone() , literal: self.literal.clone(),  lexeme: self.lexeme.clone(), line: self.line }
     }
 }
 
@@ -57,10 +99,10 @@ mod tests {
         
         let token_type = TokenType::EQUAL;
         let lexeme = "=";
-        let literal = Box::new("idk");
+        let literal = Literal::StringLiteral(String::from("literally"));
         let line = 0;
 
-        let token = Token::new(token_type, lexeme, line);
+        let token = Token::new(token_type, literal, lexeme, line);
 
         let check = String::from("EQUAL = 0");
 
