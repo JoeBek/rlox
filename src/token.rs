@@ -5,7 +5,8 @@ use std::fmt::{Display, Formatter, Result};
 #[derive(Debug, Clone)]
 pub enum Literal {
 
-    NumberLiteral(f64),
+    IntLiteral(u32),
+    FloatLiteral(f32),
     StringLiteral(String),
     None
     
@@ -28,17 +29,30 @@ impl AsRef<str> for Literal {
     }
 }
 
-impl AsRef<f64> for Literal {
+impl AsRef<f32> for Literal {
 
-    fn as_ref(&self) -> &f64 {
+    fn as_ref(&self) -> &f32 {
 
         match self {
-            Literal::NumberLiteral(f) => &f,
+            Literal::FloatLiteral(f) => &f,
 
             _ => &0.0
         }
     }
 }
+
+impl AsRef<u32> for Literal {
+
+    fn as_ref(&self) -> &u32 {
+
+        match self {
+            Literal::IntLiteral(f) => &f,
+
+            _ => &0
+        }
+    }
+}
+
 
 
 
@@ -67,6 +81,10 @@ impl Token {
             line
         }
 
+    }
+
+    pub fn get_type(&self) -> TokenType {
+        self.token_type
     }
     
 }

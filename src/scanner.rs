@@ -3,8 +3,27 @@ use crate::token_type::{TokenType};
 use crate::error;
 use crate::scanner_utils::*;
 
-
-
+fn keyword_token_type(ident: &str) -> Option<TokenType> {
+    match ident {
+        "and" => Some(TokenType::AND),
+        "class" => Some(TokenType::CLASS),
+        "else" => Some(TokenType::ELSE),
+        "false" => Some(TokenType::FALSE),
+        "for" => Some(TokenType::FOR),
+        "fun" => Some(TokenType::FUN),
+        "if" => Some(TokenType::IF),
+        "nil" => Some(TokenType::NIL),
+        "or" => Some(TokenType::OR),
+        "print" => Some(TokenType::PRINT),
+        "return" => Some(TokenType::RETURN),
+        "super" => Some(TokenType::SUPER),
+        "this" => Some(TokenType::THIS),
+        "true" => Some(TokenType::TRUE),
+        "var" => Some(TokenType::VAR),
+        "while" => Some(TokenType::WHILE),
+        _ => None,
+    }
+}
 
 struct Scanner {
 
@@ -13,6 +32,8 @@ struct Scanner {
     start: usize,
     current: usize,
     line: u32,
+
+
 
 }
 
@@ -91,10 +112,11 @@ impl Scanner {
     fn peek_next(&mut self) -> Option<char> {
         let opt = {
 
-            if self.iter_from_current().next().is_none() {
+            let mut iter = self.iter_from_current(); 
+            if iter.next().is_none() {
                 return None;
             }
-            self.iter_from_current().next().map(|(_,c)| c)
+            iter.next().map(|(_,c)| c)
         };
         opt
     }
@@ -215,7 +237,11 @@ impl Scanner {
 
                 self.handle_number();
 
-            }
+            },
+            _ if is_alpha(c) => {
+                self.handle_identifier();
+            },
+
             _ => {
                 error::error(self.line, "unexpected char")
             },
@@ -227,6 +253,8 @@ impl Scanner {
     }
 
     fn handle_number(&mut self) {
+
+      let mut dot = false;
 
       
       while let Some(c) = self.peek() {
@@ -240,6 +268,8 @@ impl Scanner {
       
 
       if matches!(self.peek(),Some('.'))  {
+
+        dot = true;
 
         if let Some(k) = self.peek_next() {
 
@@ -263,9 +293,18 @@ impl Scanner {
       let str_literal = self.source[start_byte..end_byte].to_string();
 
       // should never panic if the scanner works.. we just parsed it
-      let dub: f64 = str_literal.parse().unwrap();
-      let literal = Literal::NumberLiteral(dub);
 
+
+      let literal: Literal;
+      if dot {
+          let dub: f32 = str_literal.parse().unwrap();
+          literal = Literal::FloatLiteral(dub);
+
+      }
+      else {
+        let integer: u32 = str_literal.parse().unwrap();
+        literal = Literal::IntLiteral(integer);
+      }
 
       self.add_token_literal(TokenType::NUMBER, literal);
 
@@ -307,6 +346,32 @@ impl Scanner {
        let literal = self.source[start_byte..end_byte].to_owned();
 
        self.add_token_literal(TokenType::STRING, Literal::StringLiteral(literal));
+
+    }
+
+    fn handle_identifier(&mut self) {
+
+        // advance while alphanumeric
+        while let Some(c) = self.peek() {
+            if !is_alphanumeric(c) {
+                break;
+            }
+            self.advance();
+        }
+       // get identifier
+       let start_byte = self.source.char_indices().nth(self.start).map(|(i,_)| i).unwrap();
+       // I think it works..
+       let end_byte = self.source.char_indices().nth(self.current - 1).map(|(i,_)| i + 1).unwrap();
+        
+        let text = &self.source[start_byte..end_byte];
+
+        if let Some(ttype) = keyword_token_type(text) {
+            self.add_token(ttype);
+        }
+        else {
+            self.add_token(TokenType::IDENTIFIER);
+        }
+
 
     }
 
@@ -383,7 +448,7 @@ mod tests {
 
         let mut iter = scanner.iter_from_start();
         
-        let (i, c) = iter.next().unwrap();
+        let (_, c) = iter.next().unwrap();
 
         assert_eq!('h', c);
 
@@ -463,7 +528,30 @@ mod tests {
     #[test]
     fn test_token_number_literal() {
 
-        let source = String::from("11 11.1");
+        let source = String::from("11.0 11");
+
+        let mut scanner = Scanner::new(&source);
+
+        scanner.scan_tokens();
+
+        assert_eq!(2, scanner.tokens.len());
+
+        let item = &scanner.tokens[0];
+
+        let literal = &item.literal;
+
+        assert!(literal.is_some());
+
+        let f: &f32 = literal.as_ref();
+        let compare: f32 = 11.0;
+        assert_eq!(*f, compare);
+
+    }
+
+    #[test]
+    fn test_keyword() {
+
+        let source = String::from("and");
 
         let mut scanner = Scanner::new(&source);
 
@@ -473,15 +561,31 @@ mod tests {
 
         let item = &scanner.tokens[0];
 
-        let literal = &item.literal;
+        let ttype = item.get_type();
 
-        assert!(literal.is_some());
-
-        let f: &f64 = literal.as_ref();
-        let compare: f64 = 11.0;
-        assert_eq!(*f, compare);
-
+        assert_eq!(TokenType::AND, ttype);
     }
+
+    #[test]
+    fn test_identifier() {
+
+        let source = String::from("andi");
+
+        let mut scanner = Scanner::new(&source);
+
+        scanner.scan_tokens();
+
+        assert_eq!(1, scanner.tokens.len());
+
+        let item = &scanner.tokens[0];
+
+        let ttype = item.get_type();
+
+        assert_eq!(TokenType::IDENTIFIER, ttype);
+    }
+
+
+
 
 
     
